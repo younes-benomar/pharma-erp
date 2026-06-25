@@ -234,7 +234,7 @@ db.serialize(() => {
     db.run(`INSERT OR IGNORE INTO F_ARTICLE (AR_Ref,AR_Design,FA_CodeFamille,AR_UniteVen,AR_PrixAch,AR_PrixVen,AR_SuiviStock,AR_CodeBarre,AR_Nature)
             VALUES ('ART-003','Vitamine C 1000mg Effervescent','PARA',3,28.00,42.00,0,'6111234567892',2)`);
     db.run(`INSERT OR IGNORE INTO F_ARTICLE (AR_Ref,AR_Design,FA_CodeFamille,AR_UniteVen,AR_PrixAch,AR_PrixVen,AR_SuiviStock,AR_CodeBarre,AR_Nature)
-            VALUES ('ART-004','Gants d\'examen taille M (x100)','CONS',1,55.00,85.00,0,'6111234567893',0)`);
+            VALUES ('ART-004','Gants d''examen taille M (x100)','CONS',1,55.00,85.00,0,'6111234567893',0)`);
     db.run(`INSERT OR IGNORE INTO F_ARTICLE (AR_Ref,AR_Design,FA_CodeFamille,AR_UniteVen,AR_PrixAch,AR_PrixVen,AR_SuiviStock,AR_CodeBarre,AR_Nature)
             VALUES ('ART-005','Ibuprofène 400mg Boîte/20cp','MED',2,18.00,27.00,2,'6111234567894',2)`);
 
@@ -351,6 +351,18 @@ app.get('/api/fournisseurs', (req, res) => {
     });
 });
 
+// ── COMPTES (alias pour le frontend — clients CT_Type=0, fournisseurs CT_Type=1) ──
+app.get('/api/comptes', (req, res) => {
+    const type = req.query.type !== undefined ? parseInt(req.query.type) : null;
+    let sql = `SELECT * FROM F_COMPTET WHERE CT_Sommeil = 0`;
+    const params = [];
+    if (type !== null) { sql += ` AND CT_Type = ?`; params.push(type); }
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 // ── STOCK ──
 app.get('/api/stock', (req, res) => {
     db.all(`SELECT s.AR_Ref, a.AR_Design, s.AS_QteSto, d.DE_Intitule as depot
@@ -358,6 +370,17 @@ app.get('/api/stock', (req, res) => {
             JOIN F_ARTICLE a ON s.AR_Ref = a.AR_Ref
             JOIN F_DEPOT   d ON s.DE_NO  = d.DE_NO
             ORDER BY s.AS_QteSto DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// ── ARTSTOCK (alias détaillé) ──
+app.get('/api/artstock', (req, res) => {
+    db.all(`SELECT s.*, a.AR_Design, d.DE_Intitule as depot
+            FROM F_ARTSTOCK s
+            JOIN F_ARTICLE a ON s.AR_Ref = a.AR_Ref
+            JOIN F_DEPOT   d ON s.DE_NO  = d.DE_NO`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
@@ -384,12 +407,19 @@ app.get('/api/lots', (req, res) => {
 
 // ── DOCUMENTS (Factures, BL, BC...) ──
 app.get('/api/documents', (req, res) => {
-    db.all(`SELECT e.*, t.CT_Intitule as client_nom,
+    const domaine = req.query.domaine !== undefined ? parseInt(req.query.domaine) : null;
+    const type    = req.query.type    !== undefined ? parseInt(req.query.type)    : null;
+    let sql = `SELECT e.*, t.CT_Intitule as client_nom,
                    c.CO_Nom || ' ' || c.CO_Prenom as vendeur
             FROM F_DOCENTETE e
-            LEFT JOIN F_COMPTET t      ON e.DO_Tiers = t.CT_Num
-            LEFT JOIN F_COLLABORATEUR c ON e.CO_No   = c.CO_No
-            ORDER BY e.DO_Date DESC`, [], (err, rows) => {
+            LEFT JOIN F_COMPTET t       ON e.DO_Tiers = t.CT_Num
+            LEFT JOIN F_COLLABORATEUR c ON e.CO_No    = c.CO_No
+            WHERE 1=1`;
+    const params = [];
+    if (domaine !== null) { sql += ` AND e.DO_Domaine = ?`; params.push(domaine); }
+    if (type    !== null) { sql += ` AND e.DO_Type = ?`;    params.push(type); }
+    sql += ` ORDER BY e.DO_Date DESC`;
+    db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
@@ -431,6 +461,20 @@ app.get('/api/reglements', (req, res) => {
 // ── COLLABORATEURS ──
 app.get('/api/collaborateurs', (req, res) => {
     db.all(`SELECT * FROM F_COLLABORATEUR`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// ── VENTES MENSUELLES (pour graphique Dashboard) ──
+app.get('/api/ventes', (req, res) => {
+    db.all(`SELECT strftime('%m', DO_Date) as mois,
+                   SUM(DO_TotalHT) as total_HT
+            FROM F_DOCENTETE
+            WHERE DO_Domaine = 0 AND DO_Type = 6
+              AND strftime('%Y', DO_Date) = strftime('%Y', 'now')
+            GROUP BY mois
+            ORDER BY mois ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
@@ -494,13 +538,17 @@ app.listen(port, () => {
     console.log(`   GET  /api/familles`);
     console.log(`   GET  /api/clients`);
     console.log(`   GET  /api/fournisseurs`);
+    console.log(`   GET  /api/comptes`);
     console.log(`   GET  /api/stock`);
+    console.log(`   GET  /api/artstock`);
     console.log(`   GET  /api/depots`);
     console.log(`   GET  /api/lots`);
     console.log(`   GET  /api/factures`);
+    console.log(`   GET  /api/documents`);
     console.log(`   GET  /api/documents/:piece/lignes`);
     console.log(`   GET  /api/reglements`);
     console.log(`   GET  /api/collaborateurs`);
+    console.log(`   GET  /api/ventes`);
     console.log(`   GET  /api/dashboard/top-vendeurs`);
     console.log(`   GET  /api/dashboard/top-articles`);
     console.log(`   GET  /api/dashboard/stats`);
