@@ -18,8 +18,9 @@ import {
   docLignes,
 } from '../data/mockData';
 
-const USE_MOCK      = true;
-const API_BASE_URL  = '';
+// FIX: Set USE_MOCK = false and point to the local API server.
+const USE_MOCK      = false;
+const API_BASE_URL  = 'http://localhost:3000';
 const delay = (ms = 600) => new Promise(r => setTimeout(r, ms));
 
 const apiFetch = async (path) => {
@@ -33,30 +34,30 @@ export const ERPService = {
   // ---- Stock (legacy, used by Dashboard / Stock page) ----
   getStock: async () => {
     if (USE_MOCK) { await delay(); return apiStockInitial; }
-    return apiFetch('/stock');
+    return apiFetch('/api/stock');
   },
 
   // ---- Ventes chart ----
   getVentes: async () => {
     if (USE_MOCK) { await delay(); return apiVentesMensuelles; }
-    return apiFetch('/ventes');
+    return apiFetch('/api/ventes');
   },
 
   // ---- Articles ----
   getArticles: async () => {
     if (USE_MOCK) { await delay(); return articles; }
-    return apiFetch('/articles');
+    return apiFetch('/api/articles');
   },
 
   getArticleByRef: async (ref) => {
     if (USE_MOCK) { await delay(300); return articles.find(a => a.ar_ref === ref) ?? null; }
-    return apiFetch(`/articles/${ref}`);
+    return apiFetch(`/api/articles/${ref}`);
   },
 
   // ---- Stock détaillé ----
   getArtStock: async () => {
     if (USE_MOCK) { await delay(); return artStock; }
-    return apiFetch('/artstock');
+    return apiFetch('/api/artstock');
   },
 
   // ---- Comptes (Clients + Fournisseurs) ----
@@ -66,7 +67,7 @@ export const ERPService = {
       return type !== null ? comptes.filter(c => c.ct_type === type) : comptes;
     }
     const q = type !== null ? `?type=${type}` : '';
-    return apiFetch(`/comptes${q}`);
+    return apiFetch(`/api/comptes${q}`);
   },
 
   getClients: async () => ERPService.getComptes(0),
@@ -75,19 +76,19 @@ export const ERPService = {
   // ---- Collaborateurs ----
   getCollaborateurs: async () => {
     if (USE_MOCK) { await delay(); return collaborateurs; }
-    return apiFetch('/collaborateurs');
+    return apiFetch('/api/collaborateurs');
   },
 
   // ---- Familles ----
   getFamilles: async () => {
     if (USE_MOCK) { await delay(200); return familles; }
-    return apiFetch('/familles');
+    return apiFetch('/api/familles');
   },
 
   // ---- Dépôts ----
   getDepots: async () => {
     if (USE_MOCK) { await delay(200); return depots; }
-    return apiFetch('/depots');
+    return apiFetch('/api/depots');
   },
 
   // ---- Documents (entêtes) ----
@@ -102,12 +103,12 @@ export const ERPService = {
     const params = new URLSearchParams();
     if (domaine !== null) params.set('domaine', domaine);
     if (type    !== null) params.set('type',    type);
-    return apiFetch(`/documents?${params}`);
+    return apiFetch(`/api/documents?${params}`);
   },
 
   // ---- Lignes d'un document ----
   getDocLignes: async (piece) => {
     if (USE_MOCK) { await delay(300); return docLignes.filter(l => l.do_piece === piece); }
-    return apiFetch(`/documents/${piece}/lignes`);
+    return apiFetch(`/api/documents/${piece}/lignes`);
   },
 };

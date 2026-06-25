@@ -22,13 +22,11 @@ const db = new sqlite3.Database('./pharma_erp.db', (err) => {
 db.serialize(() => {
     db.run(`PRAGMA foreign_keys = ON`);
 
-    // 1. P_UNITE (pas de FK sortante)
     db.run(`CREATE TABLE IF NOT EXISTS P_UNITE (
         cbIndice    INTEGER PRIMARY KEY,
         U_Intitule  TEXT NOT NULL
     )`);
 
-    // 2. F_COLLABORATEUR (pas de FK sortante)
     db.run(`CREATE TABLE IF NOT EXISTS F_COLLABORATEUR (
         CO_No        INTEGER PRIMARY KEY AUTOINCREMENT,
         CO_Nom       TEXT,
@@ -41,7 +39,6 @@ db.serialize(() => {
         CO_Matricule TEXT
     )`);
 
-    // 3. F_FAMILLE → P_UNITE
     db.run(`CREATE TABLE IF NOT EXISTS F_FAMILLE (
         FA_CodeFamille TEXT PRIMARY KEY,
         FA_Intitule    TEXT,
@@ -52,7 +49,6 @@ db.serialize(() => {
         FOREIGN KEY (FA_UniteVen) REFERENCES P_UNITE(cbIndice)
     )`);
 
-    // 4. F_COMPTET → F_COLLABORATEUR
     db.run(`CREATE TABLE IF NOT EXISTS F_COMPTET (
         CT_Num       TEXT PRIMARY KEY,
         CT_Intitule  TEXT,
@@ -75,13 +71,11 @@ db.serialize(() => {
         FOREIGN KEY (CO_No) REFERENCES F_COLLABORATEUR(CO_No)
     )`);
 
-    // 5. F_DEPOT (pas de FK sortante)
     db.run(`CREATE TABLE IF NOT EXISTS F_DEPOT (
         DE_NO       INTEGER PRIMARY KEY,
         DE_Intitule TEXT
     )`);
 
-    // 6. F_ARTICLE → F_FAMILLE, P_UNITE
     db.run(`CREATE TABLE IF NOT EXISTS F_ARTICLE (
         AR_Ref         TEXT PRIMARY KEY,
         AR_Design      TEXT,
@@ -101,7 +95,6 @@ db.serialize(() => {
         FOREIGN KEY (AR_UniteVen)    REFERENCES P_UNITE(cbIndice)
     )`);
 
-    // 7. F_ARTSTOCK → F_ARTICLE, F_DEPOT
     db.run(`CREATE TABLE IF NOT EXISTS F_ARTSTOCK (
         AR_Ref    TEXT,
         AS_QteSto REAL DEFAULT 0,
@@ -111,7 +104,6 @@ db.serialize(() => {
         FOREIGN KEY (DE_NO)  REFERENCES F_DEPOT(DE_NO)
     )`);
 
-    // 8. F_LOTSERIE → F_ARTICLE, F_DEPOT
     db.run(`CREATE TABLE IF NOT EXISTS F_LOTSERIE (
         AR_Ref        TEXT,
         LS_NoSerie    TEXT,
@@ -125,7 +117,6 @@ db.serialize(() => {
         FOREIGN KEY (DE_NO)  REFERENCES F_DEPOT(DE_NO)
     )`);
 
-    // 9. F_DOCENTETE → F_COMPTET, F_COLLABORATEUR
     db.run(`CREATE TABLE IF NOT EXISTS F_DOCENTETE (
         DO_Piece        TEXT PRIMARY KEY,
         DO_Domaine      INTEGER DEFAULT 0,
@@ -142,7 +133,6 @@ db.serialize(() => {
         FOREIGN KEY (CO_No)    REFERENCES F_COLLABORATEUR(CO_No)
     )`);
 
-    // 10. F_DOCLIGNE → F_DOCENTETE, F_COMPTET, F_ARTICLE, F_COLLABORATEUR
     db.run(`CREATE TABLE IF NOT EXISTS F_DOCLIGNE (
         DL_No          INTEGER PRIMARY KEY AUTOINCREMENT,
         DO_Domaine     INTEGER DEFAULT 0,
@@ -177,7 +167,6 @@ db.serialize(() => {
         FOREIGN KEY (CO_No)    REFERENCES F_COLLABORATEUR(CO_No)
     )`);
 
-    // 11. F_REGLECH → F_DOCENTETE
     db.run(`CREATE TABLE IF NOT EXISTS F_REGLECH (
         RG_No      INTEGER,
         DR_No      INTEGER,
@@ -194,28 +183,23 @@ db.serialize(() => {
     // DONNÉES DE TEST (INSERT OR IGNORE)
     // ─────────────────────────────────────────
 
-    // Unités
     db.run(`INSERT OR IGNORE INTO P_UNITE VALUES (1, 'Unité')`);
     db.run(`INSERT OR IGNORE INTO P_UNITE VALUES (2, 'Boîte')`);
     db.run(`INSERT OR IGNORE INTO P_UNITE VALUES (3, 'Flacon')`);
     db.run(`INSERT OR IGNORE INTO P_UNITE VALUES (4, 'Comprimé')`);
 
-    // Collaborateurs (vendeurs)
     db.run(`INSERT OR IGNORE INTO F_COLLABORATEUR (CO_No,CO_Nom,CO_Prenom,CO_Fonction,CO_Vendeur,CO_Email)
             VALUES (1,'Benali','Youssef','Commercial',1,'y.benali@pharma.ma')`);
     db.run(`INSERT OR IGNORE INTO F_COLLABORATEUR (CO_No,CO_Nom,CO_Prenom,CO_Fonction,CO_Vendeur,CO_Email)
             VALUES (2,'Idrissi','Fatima','Acheteuse',0,'f.idrissi@pharma.ma')`);
 
-    // Familles
     db.run(`INSERT OR IGNORE INTO F_FAMILLE VALUES ('MED','Médicaments',0,2,2,'MED')`);
     db.run(`INSERT OR IGNORE INTO F_FAMILLE VALUES ('PARA','Parapharmacie',0,1,0,'PARA')`);
     db.run(`INSERT OR IGNORE INTO F_FAMILLE VALUES ('CONS','Consommables',0,1,0,'CONS')`);
 
-    // Dépôts
     db.run(`INSERT OR IGNORE INTO F_DEPOT VALUES (1,'Dépôt Principal')`);
     db.run(`INSERT OR IGNORE INTO F_DEPOT VALUES (2,'Dépôt Secondaire')`);
 
-    // Clients / Fournisseurs
     db.run(`INSERT OR IGNORE INTO F_COMPTET VALUES ('CLI-001','Client Comptoir',0,NULL,NULL,'Ahmed Alami',
             'Rue Hassan II','','Casablanca','Grand Casablanca',NULL,'0661000001',NULL,'ahmed@gmail.com',NULL,1,
             date('now'),0)`);
@@ -226,7 +210,7 @@ db.serialize(() => {
             'Zone Industrielle','','Casablanca','Grand Casablanca',NULL,'0522000003',NULL,'sanofi@labo.ma',NULL,2,
             date('now'),0)`);
 
-    // Articles
+    // FIX: apostrophe inside SQLite string must be doubled (''), not backslash-escaped (\').
     db.run(`INSERT OR IGNORE INTO F_ARTICLE (AR_Ref,AR_Design,FA_CodeFamille,AR_UniteVen,AR_PrixAch,AR_PrixVen,AR_SuiviStock,AR_CodeBarre,AR_Nature)
             VALUES ('ART-001','Paracétamol 1000mg Boîte/16cp','MED',2,12.00,18.50,2,'6111234567890',2)`);
     db.run(`INSERT OR IGNORE INTO F_ARTICLE (AR_Ref,AR_Design,FA_CodeFamille,AR_UniteVen,AR_PrixAch,AR_PrixVen,AR_SuiviStock,AR_CodeBarre,AR_Nature)
@@ -238,24 +222,20 @@ db.serialize(() => {
     db.run(`INSERT OR IGNORE INTO F_ARTICLE (AR_Ref,AR_Design,FA_CodeFamille,AR_UniteVen,AR_PrixAch,AR_PrixVen,AR_SuiviStock,AR_CodeBarre,AR_Nature)
             VALUES ('ART-005','Ibuprofène 400mg Boîte/20cp','MED',2,18.00,27.00,2,'6111234567894',2)`);
 
-    // Stock
     db.run(`INSERT OR IGNORE INTO F_ARTSTOCK VALUES ('ART-001',150,1)`);
     db.run(`INSERT OR IGNORE INTO F_ARTSTOCK VALUES ('ART-002',80,1)`);
     db.run(`INSERT OR IGNORE INTO F_ARTSTOCK VALUES ('ART-003',200,1)`);
     db.run(`INSERT OR IGNORE INTO F_ARTSTOCK VALUES ('ART-004',35,2)`);
     db.run(`INSERT OR IGNORE INTO F_ARTSTOCK VALUES ('ART-005',120,1)`);
 
-    // Lots / Série (pour articles avec suivi sérialisé)
     db.run(`INSERT OR IGNORE INTO F_LOTSERIE VALUES ('ART-001','LOT-2025-01','2026-12-31',150,0,150,1)`);
     db.run(`INSERT OR IGNORE INTO F_LOTSERIE VALUES ('ART-002','LOT-2025-02','2027-06-30',80,0,80,1)`);
     db.run(`INSERT OR IGNORE INTO F_LOTSERIE VALUES ('ART-005','LOT-2025-03','2027-03-31',120,0,120,1)`);
 
-    // Documents entête (Factures de vente)
     db.run(`INSERT OR IGNORE INTO F_DOCENTETE VALUES ('FAC-001',0,6,date('now'),NULL,'CLI-001',1,110.50,110.50,132.60,132.60)`);
     db.run(`INSERT OR IGNORE INTO F_DOCENTETE VALUES ('FAC-002',0,6,date('now','-2 days'),NULL,'CLI-002',1,94.00,94.00,112.80,0)`);
     db.run(`INSERT OR IGNORE INTO F_DOCENTETE VALUES ('FAC-003',0,6,date('now','-5 days'),NULL,'CLI-001',1,27.00,27.00,32.40,32.40)`);
 
-    // Lignes de documents
     db.run(`INSERT OR IGNORE INTO F_DOCLIGNE
             (DO_Domaine,DO_Type,CT_Num,DO_Piece,DO_Date,AR_Ref,DL_Design,DL_Qte,DL_PrixUnitaire,CO_No,DL_MontantHT,DL_MontantTTC)
             VALUES (0,6,'CLI-001','FAC-001',date('now'),'ART-001','Paracétamol 1000mg',3,18.50,1,55.50,66.60)`);
@@ -269,16 +249,14 @@ db.serialize(() => {
             (DO_Domaine,DO_Type,CT_Num,DO_Piece,DO_Date,AR_Ref,DL_Design,DL_Qte,DL_PrixUnitaire,CO_No,DL_MontantHT,DL_MontantTTC)
             VALUES (0,6,'CLI-001','FAC-003',date('now','-5 days'),'ART-005','Ibuprofène 400mg',1,27.00,1,27.00,32.40)`);
 
-    // Règlements
     db.run(`INSERT OR IGNORE INTO F_REGLECH VALUES (1,1,0,6,'FAC-001',132.60,0)`);
     db.run(`INSERT OR IGNORE INTO F_REGLECH VALUES (2,2,0,6,'FAC-003',32.40,0)`);
 });
 
 // ─────────────────────────────────────────────────────────
-// ENDPOINTS API — Toutes les Routes
+// ENDPOINTS API
 // ─────────────────────────────────────────────────────────
 
-// ── ARTICLES ──
 app.get('/api/articles', (req, res) => {
     db.all(`SELECT a.*, f.FA_Intitule as famille_nom, u.U_Intitule as unite_nom
             FROM F_ARTICLE a
@@ -319,7 +297,6 @@ app.put('/api/articles/:ref', (req, res) => {
         });
 });
 
-// ── FAMILLES ──
 app.get('/api/familles', (req, res) => {
     db.all(`SELECT * FROM F_FAMILLE`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -327,7 +304,6 @@ app.get('/api/familles', (req, res) => {
     });
 });
 
-// ── TIERS (Clients / Fournisseurs) ──
 app.get('/api/tiers', (req, res) => {
     db.all(`SELECT t.*, c.CO_Nom, c.CO_Prenom
             FROM F_COMPTET t
@@ -351,7 +327,6 @@ app.get('/api/fournisseurs', (req, res) => {
     });
 });
 
-// ── COMPTES (alias pour le frontend — clients CT_Type=0, fournisseurs CT_Type=1) ──
 app.get('/api/comptes', (req, res) => {
     const type = req.query.type !== undefined ? parseInt(req.query.type) : null;
     let sql = `SELECT * FROM F_COMPTET WHERE CT_Sommeil = 0`;
@@ -363,7 +338,6 @@ app.get('/api/comptes', (req, res) => {
     });
 });
 
-// ── STOCK ──
 app.get('/api/stock', (req, res) => {
     db.all(`SELECT s.AR_Ref, a.AR_Design, s.AS_QteSto, d.DE_Intitule as depot
             FROM F_ARTSTOCK s
@@ -375,7 +349,6 @@ app.get('/api/stock', (req, res) => {
     });
 });
 
-// ── ARTSTOCK (alias détaillé) ──
 app.get('/api/artstock', (req, res) => {
     db.all(`SELECT s.*, a.AR_Design, d.DE_Intitule as depot
             FROM F_ARTSTOCK s
@@ -386,7 +359,6 @@ app.get('/api/artstock', (req, res) => {
     });
 });
 
-// ── DÉPÔTS ──
 app.get('/api/depots', (req, res) => {
     db.all(`SELECT * FROM F_DEPOT`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -394,7 +366,6 @@ app.get('/api/depots', (req, res) => {
     });
 });
 
-// ── LOTS / SÉRIE ──
 app.get('/api/lots', (req, res) => {
     db.all(`SELECT l.*, a.AR_Design, d.DE_Intitule as depot
             FROM F_LOTSERIE l
@@ -405,7 +376,6 @@ app.get('/api/lots', (req, res) => {
     });
 });
 
-// ── DOCUMENTS (Factures, BL, BC...) ──
 app.get('/api/documents', (req, res) => {
     const domaine = req.query.domaine !== undefined ? parseInt(req.query.domaine) : null;
     const type    = req.query.type    !== undefined ? parseInt(req.query.type)    : null;
@@ -436,7 +406,6 @@ app.get('/api/factures', (req, res) => {
     });
 });
 
-// ── LIGNES DE DOCUMENT ──
 app.get('/api/documents/:piece/lignes', (req, res) => {
     db.all(`SELECT dl.*, a.AR_Design as article_nom
             FROM F_DOCLIGNE dl
@@ -447,7 +416,6 @@ app.get('/api/documents/:piece/lignes', (req, res) => {
     });
 });
 
-// ── RÈGLEMENTS ──
 app.get('/api/reglements', (req, res) => {
     db.all(`SELECT r.*, e.DO_Tiers, t.CT_Intitule as client_nom
             FROM F_REGLECH r
@@ -458,7 +426,6 @@ app.get('/api/reglements', (req, res) => {
     });
 });
 
-// ── COLLABORATEURS ──
 app.get('/api/collaborateurs', (req, res) => {
     db.all(`SELECT * FROM F_COLLABORATEUR`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -466,7 +433,6 @@ app.get('/api/collaborateurs', (req, res) => {
     });
 });
 
-// ── VENTES MENSUELLES (pour graphique Dashboard) ──
 app.get('/api/ventes', (req, res) => {
     db.all(`SELECT strftime('%m', DO_Date) as mois,
                    SUM(DO_TotalHT) as total_HT
@@ -480,7 +446,6 @@ app.get('/api/ventes', (req, res) => {
     });
 });
 
-// ── DASHBOARD — Top vendeurs ──
 app.get('/api/dashboard/top-vendeurs', (req, res) => {
     db.all(`SELECT c.CO_Nom || ' ' || c.CO_Prenom as vendeur,
                    COUNT(DISTINCT dl.DO_Piece) as nb_factures,
@@ -496,7 +461,6 @@ app.get('/api/dashboard/top-vendeurs', (req, res) => {
     });
 });
 
-// ── DASHBOARD — Top articles vendus ──
 app.get('/api/dashboard/top-articles', (req, res) => {
     db.all(`SELECT dl.AR_Ref, a.AR_Design,
                    SUM(dl.DL_Qte) as qte_vendue,
@@ -512,7 +476,6 @@ app.get('/api/dashboard/top-articles', (req, res) => {
     });
 });
 
-// ── DASHBOARD — CA du mois ──
 app.get('/api/dashboard/stats', (req, res) => {
     db.get(`SELECT
                 COUNT(*) as nb_factures,
@@ -528,9 +491,6 @@ app.get('/api/dashboard/stats', (req, res) => {
         });
 });
 
-// ─────────────────────────────────────────
-// LANCER LE SERVEUR
-// ─────────────────────────────────────────
 app.listen(port, () => {
     console.log(`✅ API lancée sur http://localhost:${port}`);
     console.log(`📋 Endpoints disponibles:`);

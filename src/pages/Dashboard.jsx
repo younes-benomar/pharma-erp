@@ -1,9 +1,11 @@
 import React from 'react';
 import { TrendingUp, AlertOctagon, Clock } from 'lucide-react';
 import { AreaChart, Area, PieChart, Pie, Cell, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { apiVentesMensuelles, COULEURS_PIE } from '../data/mockData';
+import { COULEURS_PIE } from '../data/mockData';
 
-export default function Dashboard({ stock, dateAujourdhui }) {
+// FIX: ventes is now received as a prop from App.jsx (live API data),
+// instead of being imported directly from mockData.
+export default function Dashboard({ stock, ventes, dateAujourdhui }) {
   const genererDataFamilles = () => {
     const kounachFamilles = {};
     stock.forEach(item => {
@@ -49,7 +51,7 @@ export default function Dashboard({ stock, dateAujourdhui }) {
           <h3 className="text-lg font-bold text-slate-800 mb-6">Évolution Financière</h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={apiVentesMensuelles}>
+              <AreaChart data={ventes}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="mois" axisLine={false} tickLine={false} />
                 <YAxis axisLine={false} tickLine={false} />

@@ -22,7 +22,8 @@ const PAGE_TITLES = {
 };
 
 export default function App() {
-  const [estAuthentifie, setEstAuthentifie] = useState(localStorage.getItem('pharma_admin') === 'true');
+  // FIX: replaced localStorage (blocked in sandboxed iframes) with in-memory state.
+  const [estAuthentifie, setEstAuthentifie] = useState(false);
   const [pageActuelle,   setPageActuelle]   = useState('dashboard');
   const [stock,          setStock]          = useState([]);
   const [ventes,         setVentes]         = useState([]);
@@ -50,8 +51,8 @@ export default function App() {
     }
   };
 
-  const handleLoginSuccess = () => { setEstAuthentifie(true); localStorage.setItem('pharma_admin', 'true'); };
-  const handleLogout       = () => { setEstAuthentifie(false); localStorage.removeItem('pharma_admin'); };
+  const handleLoginSuccess = () => setEstAuthentifie(true);
+  const handleLogout       = () => setEstAuthentifie(false);
 
   if (!estAuthentifie) return <Login onLoginSuccess={handleLoginSuccess} />;
 
