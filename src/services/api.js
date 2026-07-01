@@ -12,8 +12,8 @@ const apiClient = axios.create({
 });
 
 const defaultPayload = {
-  client_schema: CLIENT_SCHEMA,
-  source_type: SOURCE_TYPE,
+  clientschema: CLIENT_SCHEMA,
+  sourcetype: SOURCE_TYPE,
   limit: 5000, // Maximum allowed limit to avoid 422 error
 };
 
@@ -21,10 +21,10 @@ export const fetchDocuments = async (domaine, types, dateFrom, dateTo) => {
   try {
     const payload = {
       ...defaultPayload,
-      do_domaine: domaine,
-      do_type: types,
-      date_from: dateFrom,
-      date_to: dateTo,
+      dodomaine: domaine,
+      dotype: types,
+      datefrom: dateFrom,
+      dateto: dateTo,
     };
     const response = await apiClient.post('/referentiel/documents-entete', payload);
     return response.data?.data || [];
@@ -38,7 +38,7 @@ export const fetchStock = async () => {
   try {
     const payload = {
       ...defaultPayload,
-      qte_min: 0.01, // Only items in stock
+      qtemin: 0.01, // Only items in stock
     };
     const response = await apiClient.post('/referentiel/stock-depot', payload);
     return response.data?.data || [];
@@ -52,7 +52,7 @@ export const fetchComptesTiers = async (type) => {
   try {
     const payload = {
       ...defaultPayload,
-      ct_type: [type], // 0 for client
+      cttype: [type], // 0 for client
       // montant_regle_unpaid: true // if we want only unpaid, but we might want all to calculate limits
     };
     const response = await apiClient.post('/referentiel/comptes-tiers', payload);
@@ -67,7 +67,7 @@ export const fetchCollaborateurs = async () => {
   try {
     const payload = {
       ...defaultPayload,
-      co_vendeur: 1, // Get only vendors/commercials
+      covendeur: 1, // Get only vendors/commercials
     };
     const response = await apiClient.post('/referentiel/collaborateurs', payload);
     return response.data?.data || [];
@@ -81,11 +81,11 @@ export const fetchLignesFacture = async (dateFrom, dateTo) => {
     try {
         const payload = {
           ...defaultPayload,
-          do_domaine: [0], // Vente
-          do_type: [6, 7], // Factures
-          date_from: dateFrom,
-          date_to: dateTo,
-          with_entete: true
+          dodomaine: [0], // Vente
+          dotype: [6, 7], // Factures
+          datefrom: dateFrom,
+          dateto: dateTo,
+          withentete: true
         };
         const response = await apiClient.post('/referentiel/documents-ligne', payload);
         return response.data?.data || [];
