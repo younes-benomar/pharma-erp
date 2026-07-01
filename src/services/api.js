@@ -1,30 +1,28 @@
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.5.199:8000/api';
-const CLIENT_SCHEMA = 'dbo'; // The user's system expects 'dbo' based on old code
-const SOURCE_TYPE = 'db_latest';
+const CLIENT_SCHEMA = 'dbo';
+const SOURCE_TYPE = 'dblatest'; // No underscore - matches API spec
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
 const defaultPayload = {
-  client_schema: CLIENT_SCHEMA,
-  source_type: SOURCE_TYPE,
-  limit: 5000, // Maximum allowed limit to avoid 422 error
+  clientschema: CLIENT_SCHEMA,  // No underscore
+  sourcetype: SOURCE_TYPE,      // No underscore
+  limit: 5000,
 };
 
 export const fetchDocuments = async (domaine, types, dateFrom, dateTo) => {
   try {
     const payload = {
       ...defaultPayload,
-      do_domaine: domaine,
-      do_type: types,
-      date_from: dateFrom,
-      date_to: dateTo,
+      dodomaine: domaine,
+      dotype: types,
+      datefrom: dateFrom,
+      dateto: dateTo,
     };
     const response = await apiClient.post('/referentiel/documents-entete', payload);
     return response.data?.data || [];
@@ -36,10 +34,7 @@ export const fetchDocuments = async (domaine, types, dateFrom, dateTo) => {
 
 export const fetchStock = async () => {
   try {
-    const payload = {
-      ...defaultPayload,
-      qte_min: 0.01, // Only items in stock
-    };
+    const payload = { ...defaultPayload, qtemin: 0.01 };
     const response = await apiClient.post('/referentiel/stock-depot', payload);
     return response.data?.data || [];
   } catch (error) {
@@ -50,11 +45,7 @@ export const fetchStock = async () => {
 
 export const fetchComptesTiers = async (type) => {
   try {
-    const payload = {
-      ...defaultPayload,
-      ct_type: [type], // 0 for client
-      // montant_regle_unpaid: true // if we want only unpaid, but we might want all to calculate limits
-    };
+    const payload = { ...defaultPayload, cttype: [type] };
     const response = await apiClient.post('/referentiel/comptes-tiers', payload);
     return response.data?.data || [];
   } catch (error) {
@@ -65,10 +56,7 @@ export const fetchComptesTiers = async (type) => {
 
 export const fetchCollaborateurs = async () => {
   try {
-    const payload = {
-      ...defaultPayload,
-      co_vendeur: 1, // Get only vendors/commercials
-    };
+    const payload = { ...defaultPayload, covendeur: 1 };
     const response = await apiClient.post('/referentiel/collaborateurs', payload);
     return response.data?.data || [];
   } catch (error) {
@@ -78,27 +66,26 @@ export const fetchCollaborateurs = async () => {
 };
 
 export const fetchLignesFacture = async (dateFrom, dateTo) => {
-    try {
-        const payload = {
-          ...defaultPayload,
-          do_domaine: [0], // Vente
-          do_type: [6, 7], // Factures
-          date_from: dateFrom,
-          date_to: dateTo,
-          with_entete: true
-        };
-        const response = await apiClient.post('/referentiel/documents-ligne', payload);
-        return response.data?.data || [];
-      } catch (error) {
-        console.error('Error fetching document lignes:', error);
-        throw error;
-      }
-}
+  try {
+    const payload = {
+      ...defaultPayload,
+      dodomaine: [0],
+      dotype: [6, 7],
+      datefrom: dateFrom,
+      dateto: dateTo,
+      withentete: true,
+    };
+    const response = await apiClient.post('/referentiel/documents-ligne', payload);
+    return response.data?.data || [];
+  } catch (error) {
+    console.error('Error fetching document lignes:', error);
+    throw error;
+  }
+};
 
 // Calculate CA (Total HT Net of Factures Vente)
-export const calculateCA = (factures) => {
-  return factures.reduce((sum, doc) => sum + (doc.do_totalhtnet || 0), 0);
-};
+export const calculateCA = (factures) =>
+  factures.reduce((sum, doc) => sum + (doc.do_totalhtnet || 0), 0);
 
 // Calculate Marge Brute (CA - Achats)
 export const calculateMargeBrute = (ca, facturesAchat) => {
@@ -107,37 +94,27 @@ export const calculateMargeBrute = (ca, facturesAchat) => {
 };
 
 // Calculate Valeur du Stock
-export const calculateValeurStock = (stockData) => {
-  // Assuming stock data has as_qtesto and ar_prixach
-  return stockData.reduce((sum, item) => {
-      const qte = parseFloat(item.as_qtesto) || 0;
-      const prixAch = parseFloat(item.ar_prixach || item.ar_punet) || 0;
-      return sum + (qte * prixAch);
+export const calculateValeurStock = (stockData) =>
+  stockData.reduce((sum, item) => {
+    const qte = parseFloat(item.as_qtesto) || 0;
+    const prixAch = parseFloat(item.ar_prixach || item.ar_punet) || 0;
+    return sum + (qte * prixAch);
   }, 0);
-};
 
 // Calculate Taux de Conversion
 export const calculateTauxConversion = (devis, factures) => {
-  const nbDevis = devis.length;
-  const nbFactures = factures.length;
-  if (nbDevis === 0) return 0;
-  return (nbFactures / nbDevis) * 100;
+  if (devis.length === 0) return 0;
+  return (factures.length / devis.length) * 100;
 };
 
 // CA by Famille
 export const calculateCAByFamille = (lignesFacture) => {
-    const caParFamille = {};
-    lignesFacture.forEach(ligne => {
-        const famille = ligne.fa_codefamille || 'Non catégorisé';
-        const montant = ligne.dl_montantht || 0;
-        if (!caParFamille[famille]) {
-            caParFamille[famille] = 0;
-        }
-        caParFamille[famille] += montant;
-    });
-    
-    return Object.keys(caParFamille).map(name => ({
-        name,
-        value: caParFamille[name]
-    })).sort((a, b) => b.value - a.value); // Sort descending
+  const caParFamille = {};
+  lignesFacture.forEach((ligne) => {
+    const famille = ligne.fa_codefamille || 'Non catégorisé';
+    caParFamille[famille] = (caParFamille[famille] || 0) + (ligne.dl_montantht || 0);
+  });
+  return Object.keys(caParFamille)
+    .map((name) => ({ name, value: caParFamille[name] }))
+    .sort((a, b) => b.value - a.value);
 };
