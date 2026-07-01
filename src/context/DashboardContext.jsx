@@ -5,12 +5,16 @@ import {
     fetchStock, 
     fetchComptesTiers, 
     fetchLignesFacture,
+    fetchCollaborateurs,
     calculateCA,
     calculateMargeBrute,
     calculateValeurStock,
     calculateTauxConversion,
     calculateCAByFamille
 } from '../services/api';
+
+// Limite de crédit fictive (car F_COMPTET ne contient pas de limite explicite dans ce schéma)
+const GLOBAL_CREDIT_LIMIT = 1000000;
 
 const DashboardContext = createContext();
 
@@ -76,7 +80,8 @@ export const DashboardProvider = ({ children }) => {
                 stock, 
                 clients, 
                 lignesFactureVente,
-                retours
+                retours,
+                collaborateurs
             ] = await Promise.all([
                 fetchDocuments([0], [6, 7], startStr, endStr),
                 fetchDocuments([1], [16, 17], startStr, endStr), // Dépenses / Achats
@@ -84,7 +89,8 @@ export const DashboardProvider = ({ children }) => {
                 fetchStock(),
                 fetchComptesTiers(0), // Clients
                 fetchLignesFacture(startStr, endStr),
-                fetchDocuments([0], [4], startStr, endStr) // Bons de retour
+                fetchDocuments([0], [4], startStr, endStr), // Bons de retour
+                fetchCollaborateurs() // Mapping noms commerciaux
             ]);
 
             // 1. Chiffre d'Affaires (CA)
@@ -112,25 +118,23 @@ export const DashboardProvider = ({ children }) => {
             const tauxConversion = calculateTauxConversion(devis, facturesVente);
 
             // 6. Encours Client (%)
-            // Simplified logic: SUM(do_totalttc - do_montantregle) / sum(limits)
             let totalUnpaid = 0;
             facturesVente.forEach(f => {
                 totalUnpaid += ((f.do_totalttc || 0) - (f.do_montantregle || 0));
             });
-            // We assume a fake limit if none exists. Let's say total limit is 1,000,000 for all clients for demo purposes
-            // In a real scenario, this should come from a field in F_COMPTET
-            const mockGlobalLimit = 1000000; 
-            const encoursClient = (totalUnpaid / mockGlobalLimit) * 100;
+            const encoursClient = (totalUnpaid / GLOBAL_CREDIT_LIMIT) * 100;
 
             // 7. CA par Famille
             const caParFamille = calculateCAByFamille(lignesFactureVente);
 
-            // 8. Taux de Retour
-            // Aggregate return quantities by product
-            const returnRates = {};
-            // Simplified: we would need lignes de retour, but we only have entetes.
-            // We will mock this or rely on fetchLignesFacture adapted for returns if we had it.
-            // For now, let's just count return documents per client.
+            // 8. Taux de Retour (%) (Total CA Retours / Total CA Ventes * 100)
+            const caRetours = retours.reduce((sum, doc) => sum + (doc.do_totalhtnet || 0), 0);
+            const tauxRetourValue = ca > 0 ? (caRetours / ca) * 100 : 0;
+            const tauxRetour = [
+                { name: 'Retours', value: tauxRetourValue }
+            ]; // Formatting as an array or value depending on where it's used. Let's just pass the numerical value.
+            // Wait, in state it was `tauxRetour: []`. I'll pass the value instead. But I'll leave the state structure intact and pass it as a number in a minute, actually the user said "tauxRetour: [] is always empty". So they want to see the value. I'll make it a number for the state instead. Wait, they have it as an array in the mock. Let's look at the mock: `tauxRetour: []`. In the original code, it was `tauxRetourCa: -15000`. So it was a CA value. Let's keep it as CA value for the mock and real data.
+            const totalCaRetours = -caRetours;
             
             // 9. Top Clients
             const clientCA = {};
@@ -152,14 +156,20 @@ export const DashboardProvider = ({ children }) => {
                 .slice(0, 10);
 
             // CA par Commercial
+            const collabMap = collaborateurs.reduce((acc, c) => {
+                acc[c.co_no] = c.co_nom ? `${c.co_nom} ${c.co_prenom || ''}` : c.co_matricule;
+                return acc;
+            }, {});
+
             const commercialCA = {};
             facturesVente.forEach(f => {
-                const comId = f.co_no || 'Inconnu';
+                const comId = f.co_no;
+                if (!comId) return; // Ignore missing commercial
                 if (!commercialCA[comId]) commercialCA[comId] = 0;
                 commercialCA[comId] += (f.do_totalhtnet || 0);
             });
             const caParCommercial = Object.keys(commercialCA)
-                .map(id => ({ nom: `Commercial ${id}`, ca: commercialCA[id] }))
+                .map(id => ({ nom: collabMap[id] || `Commercial ${id}`, ca: commercialCA[id] }))
                 .sort((a, b) => b.ca - a.ca);
 
             // Elements en attente
@@ -185,7 +195,7 @@ export const DashboardProvider = ({ children }) => {
                 topClients,
                 enAttente,
                 caParCommercial,
-                tauxRetour: [] // To be implemented with detailed return lines
+                tauxRetour: totalCaRetours
             });
 
         } catch (error) {
@@ -213,11 +223,11 @@ export const DashboardProvider = ({ children }) => {
                   { id: 'FAC-2026-001', client: 'Pharmacie Pasteur', date: '2026-07-05', resteAPayer: 15000 * coeff }
                 ],
                 caParCommercial: [
-                  { nom: 'Kamal (C01)', ca: 520000 * coeff },
-                  { nom: 'Sara (C02)', ca: 480000 * coeff },
-                  { nom: 'Amine (C03)', ca: 250400 * coeff }
+                  { nom: 'Kamal', ca: 520000 * coeff },
+                  { nom: 'Sara', ca: 480000 * coeff },
+                  { nom: 'Amine', ca: 250400 * coeff }
                 ],
-                tauxRetour: []
+                tauxRetour: -15000 * coeff
             });
         } finally {
             setLoading(false);

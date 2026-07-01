@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://192.168.5.199:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.5.199:8000/api';
 const CLIENT_SCHEMA = 'dbo'; // The user's system expects 'dbo' based on old code
 const SOURCE_TYPE = 'db_latest';
 
@@ -59,6 +59,20 @@ export const fetchComptesTiers = async (type) => {
     return response.data?.data || [];
   } catch (error) {
     console.error('Error fetching comptes tiers:', error);
+    throw error;
+  }
+};
+
+export const fetchCollaborateurs = async () => {
+  try {
+    const payload = {
+      ...defaultPayload,
+      co_vendeur: 1, // Get only vendors/commercials
+    };
+    const response = await apiClient.post('/referentiel/collaborateurs', payload);
+    return response.data?.data || [];
+  } catch (error) {
+    console.error('Error fetching collaborateurs:', error);
     throw error;
   }
 };

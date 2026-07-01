@@ -6,7 +6,8 @@ import {
   Percent, 
   Package, 
   AlertCircle, 
-  RefreshCcw 
+  RefreshCcw,
+  Undo2
 } from 'lucide-react';
 
 const formatCurrency = (value) => {
@@ -58,6 +59,13 @@ export const KpiCards = () => {
       icon: RefreshCcw,
       color: "bg-cyan-50 text-cyan-600",
       borderColor: "border-cyan-100"
+    },
+    {
+      title: "Valeur des Retours",
+      value: formatCurrency(Math.abs(data.tauxRetour || 0)), // Ensure it handles undefined/0
+      icon: Undo2,
+      color: "bg-red-50 text-red-600",
+      borderColor: "border-red-100"
     }
   ];
 
@@ -72,7 +80,7 @@ export const KpiCards = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {kpis.map((kpi, index) => (
         <div 
           key={index} 
