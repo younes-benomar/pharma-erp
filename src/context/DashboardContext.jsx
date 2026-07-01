@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
-import { startOfYear, endOfMonth, endOfYear, setYear, setMonth, isAfter, isBefore, startOfMonth } from 'date-fns';
+import { endOfMonth, isAfter } from 'date-fns';
 import { 
     fetchDocuments, 
     fetchStock, 
@@ -13,7 +13,6 @@ import {
     calculateCAByFamille
 } from '../services/api';
 
-// Limite de crédit fictive (car F_COMPTET ne contient pas de limite explicite dans ce schéma)
 const GLOBAL_CREDIT_LIMIT = 1000000;
 
 const DashboardContext = createContext();
@@ -22,7 +21,7 @@ export const useDashboard = () => useContext(DashboardContext);
 
 export const DashboardProvider = ({ children }) => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-    const [selectedMonths, setSelectedMonths] = useState([]); // array of month indices 0-11
+    const [selectedMonths, setSelectedMonths] = useState([]);
     
     const [data, setData] = useState({
         ca: 0,
@@ -35,28 +34,21 @@ export const DashboardProvider = ({ children }) => {
         topClients: [],
         enAttente: [],
         caParCommercial: [],
-        tauxRetour: []
+        tauxRetour: 0
     });
     
     const [loading, setLoading] = useState(false);
 
     const dateRange = useMemo(() => {
         const now = new Date();
-        const currentYear = now.getFullYear();
         let startDate, endDate;
 
         if (selectedMonths.length === 0) {
-            // Cas 1: S'il choisit l'année et ne choisit pas le mois. -> depuis l'année choisie jusqu'à l'année actuelle.
-            startDate = new Date(selectedYear, 0, 1); // Jan 1st of selected year
-            endDate = new Date(); // Today
+            startDate = new Date(selectedYear, 0, 1);
+            endDate = new Date();
         } else {
-            // Multiple months selected
-            // Cas 2: S'il choisit le mois et pas l'année. -> "L'année actuelle est par défaut mise" (already handled by default state)
-            // We need to find the earliest start and latest end of the selected months in the selected year
             const sortedMonths = [...selectedMonths].sort((a, b) => a - b);
             startDate = new Date(selectedYear, sortedMonths[0], 1);
-            
-            // If the latest month is in the future, we cap it at today (optional, but good practice)
             let tempEndDate = endOfMonth(new Date(selectedYear, sortedMonths[sortedMonths.length - 1]));
             endDate = isAfter(tempEndDate, now) ? now : tempEndDate;
         }
@@ -72,35 +64,34 @@ export const DashboardProvider = ({ children }) => {
         try {
             const { startStr, endStr } = dateRange;
             
-            // Parallel data fetching
+            // Fetch all using domaine + piece prefix (do_type is always 0 in this ERP)
             const [
-                facturesVente, 
-                facturesAchat, 
-                devis, 
-                stock, 
-                clients, 
+                facturesVente,   // do_domaine=0, piece starts with 'F'
+                facturesAchat,   // do_domaine=1, piece starts with 'FBL'
+                devis,           // do_domaine=0, piece starts with 'D'
+                stock,
+                clients,
                 lignesFactureVente,
-                retours,
+                retours,         // do_domaine=0, piece starts with 'BR'
                 collaborateurs
             ] = await Promise.all([
-                fetchDocuments([0], [6, 7], startStr, endStr),
-                fetchDocuments([1], [16, 17], startStr, endStr), // Dépenses / Achats
-                fetchDocuments([0], [0], startStr, endStr), // Devis
+                fetchDocuments([0], 'F', startStr, endStr),
+                fetchDocuments([1], 'FBL', startStr, endStr),
+                fetchDocuments([0], 'D', startStr, endStr),
                 fetchStock(),
-                fetchComptesTiers(0), // Clients
+                fetchComptesTiers(0),
                 fetchLignesFacture(startStr, endStr),
-                fetchDocuments([0], [4], startStr, endStr), // Bons de retour
-                fetchCollaborateurs() // Mapping noms commerciaux
+                fetchDocuments([0], 'BR', startStr, endStr),
+                fetchCollaborateurs()
             ]);
 
-            // 1. Chiffre d'Affaires (CA)
+            // 1. Chiffre d'Affaires
             const ca = calculateCA(facturesVente);
 
-            // 2. Marge Brute (CA - Dépenses)
+            // 2. Marge Brute
             const margeBrute = calculateMargeBrute(ca, facturesAchat);
 
-            // 3. Marge Nette/Commerciale (%) = (Montant TTC - Coût livré)
-            // Approximation for now using dl_montantttc - (dl_prixru * dl_qte)
+            // 3. Marge Nette (%)
             let totalMargeNetteAmount = 0;
             let totalVenteTTC = 0;
             lignesFactureVente.forEach(ligne => {
@@ -117,7 +108,7 @@ export const DashboardProvider = ({ children }) => {
             // 5. Taux de Conversion
             const tauxConversion = calculateTauxConversion(devis, facturesVente);
 
-            // 6. Encours Client (%)
+            // 6. Encours Client
             let totalUnpaid = 0;
             facturesVente.forEach(f => {
                 totalUnpaid += ((f.do_totalttc || 0) - (f.do_montantregle || 0));
@@ -127,24 +118,17 @@ export const DashboardProvider = ({ children }) => {
             // 7. CA par Famille
             const caParFamille = calculateCAByFamille(lignesFactureVente);
 
-            // 8. Taux de Retour (%) (Total CA Retours / Total CA Ventes * 100)
+            // 8. Taux de Retour
             const caRetours = retours.reduce((sum, doc) => sum + (doc.do_totalhtnet || 0), 0);
-            const tauxRetourValue = ca > 0 ? (caRetours / ca) * 100 : 0;
-            const tauxRetour = [
-                { name: 'Retours', value: tauxRetourValue }
-            ]; // Formatting as an array or value depending on where it's used. Let's just pass the numerical value.
-            // Wait, in state it was `tauxRetour: []`. I'll pass the value instead. But I'll leave the state structure intact and pass it as a number in a minute, actually the user said "tauxRetour: [] is always empty". So they want to see the value. I'll make it a number for the state instead. Wait, they have it as an array in the mock. Let's look at the mock: `tauxRetour: []`. In the original code, it was `tauxRetourCa: -15000`. So it was a CA value. Let's keep it as CA value for the mock and real data.
             const totalCaRetours = -caRetours;
-            
+
             // 9. Top Clients
             const clientCA = {};
             facturesVente.forEach(f => {
                 const clientId = f.do_tiers || 'Inconnu';
-                if (!clientCA[clientId]) clientCA[clientId] = 0;
-                clientCA[clientId] += (f.do_totalhtnet || 0);
+                clientCA[clientId] = (clientCA[clientId] || 0) + (f.do_totalhtnet || 0);
             });
             
-            // Map clientId to Names
             const clientMap = clients.reduce((acc, c) => {
                 acc[c.ct_num] = c.ct_intitule;
                 return acc;
@@ -155,34 +139,32 @@ export const DashboardProvider = ({ children }) => {
                 .sort((a, b) => b.ca - a.ca)
                 .slice(0, 10);
 
-            // CA par Commercial
+            // 10. CA par Commercial
             const collabMap = collaborateurs.reduce((acc, c) => {
-                acc[c.co_no] = c.co_nom ? `${c.co_nom} ${c.co_prenom || ''}` : c.co_matricule;
+                acc[c.co_no] = c.co_nom ? `${c.co_nom} ${c.co_prenom || ''}`.trim() : c.co_matricule;
                 return acc;
             }, {});
 
             const commercialCA = {};
             facturesVente.forEach(f => {
                 const comId = f.co_no;
-                if (!comId) return; // Ignore missing commercial
-                if (!commercialCA[comId]) commercialCA[comId] = 0;
-                commercialCA[comId] += (f.do_totalhtnet || 0);
+                if (!comId) return;
+                commercialCA[comId] = (commercialCA[comId] || 0) + (f.do_totalhtnet || 0);
             });
             const caParCommercial = Object.keys(commercialCA)
                 .map(id => ({ nom: collabMap[id] || `Commercial ${id}`, ca: commercialCA[id] }))
                 .sort((a, b) => b.ca - a.ca);
 
-            // Elements en attente
+            // 11. Éléments en attente
             const enAttente = facturesVente
                 .filter(f => (f.do_totalttc || 0) > (f.do_montantregle || 0))
                 .map(f => ({
                     id: f.do_piece,
                     date: f.do_date,
-                    client: clientMap[f.do_tiers] || f.do_tiers,
+                    client: f.ct_intitule || clientMap[f.do_tiers] || f.do_tiers,
                     resteAPayer: (f.do_totalttc || 0) - (f.do_montantregle || 0)
                 }))
                 .slice(0, 5);
-
 
             setData({
                 ca,
@@ -199,7 +181,7 @@ export const DashboardProvider = ({ children }) => {
             });
 
         } catch (error) {
-            console.error("L'API a retourné une erreur (ex: 500). Chargement des données Mockées.", error);
+            console.error("Erreur API — chargement des données mockées.", error);
             const diffAnnee = (new Date().getFullYear()) - selectedYear;
             const coeff = diffAnnee === 0 ? 1 : diffAnnee === 1 ? 0.85 : 0.65;
 

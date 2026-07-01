@@ -10,22 +10,34 @@ const apiClient = axios.create({
 });
 
 const defaultPayload = {
-  client_schema: CLIENT_SCHEMA,
-  source_type: SOURCE_TYPE,
+  clientschema: CLIENT_SCHEMA,
+  sourcetype: SOURCE_TYPE,
   limit: 5000,
 };
 
-export const fetchDocuments = async (domaine, types, dateFrom, dateTo) => {
+// All documents share do_type=0. Differentiation is by do_domaine + do_piece prefix:
+//   Vente Factures : do_domaine=[0], piece_prefix='F'
+//   Vente BL       : do_domaine=[0], piece_prefix='BL'
+//   Vente Devis    : do_domaine=[0], piece_prefix='D'
+//   Achat Factures : do_domaine=[1], piece_prefix='FBL'
+//   Retours        : do_domaine=[0], piece_prefix='BR'
+export const fetchDocuments = async (domaine, piecePrefix, dateFrom, dateTo) => {
   try {
     const payload = {
       ...defaultPayload,
       do_domaine: domaine,
-      do_type: types,
       date_from: dateFrom,
       date_to: dateTo,
     };
     const response = await apiClient.post('/referentiel/documents-entete', payload);
-    return response.data?.data || [];
+    const allDocs = response.data?.data || [];
+    // Filter client-side by piece prefix if provided
+    if (piecePrefix) {
+      return allDocs.filter(doc =>
+        doc.do_piece && doc.do_piece.startsWith(piecePrefix)
+      );
+    }
+    return allDocs;
   } catch (error) {
     console.error('Error fetching documents:', error.response?.data || error.message);
     throw error;
@@ -79,13 +91,16 @@ export const fetchLignesFacture = async (dateFrom, dateTo) => {
     const payload = {
       ...defaultPayload,
       do_domaine: [0],
-      do_type: [0],
       date_from: dateFrom,
       date_to: dateTo,
       with_entete: true,
     };
     const response = await apiClient.post('/referentiel/documents-ligne', payload);
-    return response.data?.data || [];
+    const allLignes = response.data?.data || [];
+    // Keep only lines from Factures Vente (piece starts with 'F')
+    return allLignes.filter(ligne =>
+      ligne.do_piece && ligne.do_piece.startsWith('F')
+    );
   } catch (error) {
     console.error('Error fetching document lignes:', error.response?.data || error.message);
     throw error;
