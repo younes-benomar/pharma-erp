@@ -79,7 +79,7 @@ export const fetchLignesFacture = async (dateFrom, dateTo) => {
     const payload = {
       ...defaultPayload,
       do_domaine: [0],
-      do_type: [6, 7],
+      do_type: [0],
       date_from: dateFrom,
       date_to: dateTo,
       with_entete: true,
