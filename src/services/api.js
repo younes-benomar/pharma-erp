@@ -1,22 +1,24 @@
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.5.199:8000/api';
-
-// TODO: Replace 'dbo' with your actual PostgreSQL schema name
-const CLIENT_SCHEMA = import.meta.env.VITE_CLIENT_SCHEMA || 'dbo';
+const CLIENT_SCHEMA = import.meta.env.VITE_CLIENT_SCHEMA || 'client_01';
+const SOURCE_TYPE = 'db_latest';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
-// DocEnteteRequest uses: client_schema, source_type, do_domaine, do_type, date_from, date_to (WITH underscores)
+const defaultPayload = {
+  client_schema: CLIENT_SCHEMA,
+  source_type: SOURCE_TYPE,
+  limit: 5000,
+};
+
 export const fetchDocuments = async (domaine, types, dateFrom, dateTo) => {
   try {
     const payload = {
-      client_schema: CLIENT_SCHEMA,
-      source_type: 'db_latest',
-      limit: 5000,
+      ...defaultPayload,
       do_domaine: domaine,
       do_type: types,
       date_from: dateFrom,
@@ -30,14 +32,11 @@ export const fetchDocuments = async (domaine, types, dateFrom, dateTo) => {
   }
 };
 
-// StockDepotRequest uses: clientschema, sourcetype, qtemin (NO underscores)
 export const fetchStock = async () => {
   try {
     const payload = {
-      clientschema: CLIENT_SCHEMA,
-      sourcetype: 'dblatest',
-      limit: 5000,
-      qtemin: 0.01,
+      ...defaultPayload,
+      qte_min: 0.01,
     };
     const response = await apiClient.post('/referentiel/stock-depot', payload);
     return response.data?.data || [];
@@ -47,13 +46,10 @@ export const fetchStock = async () => {
   }
 };
 
-// ComptesTiersRequest - check swagger for exact field names
 export const fetchComptesTiers = async (type) => {
   try {
     const payload = {
-      client_schema: CLIENT_SCHEMA,
-      source_type: 'db_latest',
-      limit: 5000,
+      ...defaultPayload,
       ct_type: [type],
     };
     const response = await apiClient.post('/referentiel/comptes-tiers', payload);
@@ -64,13 +60,10 @@ export const fetchComptesTiers = async (type) => {
   }
 };
 
-// CollaborateurRequest - check swagger for exact field names
 export const fetchCollaborateurs = async () => {
   try {
     const payload = {
-      client_schema: CLIENT_SCHEMA,
-      source_type: 'db_latest',
-      limit: 5000,
+      ...defaultPayload,
       co_vendeur: 1,
     };
     const response = await apiClient.post('/referentiel/collaborateurs', payload);
@@ -81,13 +74,10 @@ export const fetchCollaborateurs = async () => {
   }
 };
 
-// DocLigneRequest uses same convention as DocEnteteRequest
 export const fetchLignesFacture = async (dateFrom, dateTo) => {
   try {
     const payload = {
-      client_schema: CLIENT_SCHEMA,
-      source_type: 'db_latest',
-      limit: 5000,
+      ...defaultPayload,
       do_domaine: [0],
       do_type: [6, 7],
       date_from: dateFrom,
@@ -125,7 +115,7 @@ export const calculateTauxConversion = (devis, factures) => {
 export const calculateCAByFamille = (lignesFacture) => {
   const caParFamille = {};
   lignesFacture.forEach((ligne) => {
-    const famille = ligne.fa_codefamille || 'Non catégorisé';
+    const famille = ligne.fa_codefamille || 'Non cat\u00e9goris\u00e9';
     caParFamille[famille] = (caParFamille[famille] || 0) + (ligne.dl_montantht || 0);
   });
   return Object.keys(caParFamille)
