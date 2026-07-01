@@ -7,7 +7,8 @@ import {
   Package, 
   AlertCircle, 
   RefreshCcw,
-  Undo2
+  Undo2,
+  Wallet
 } from 'lucide-react';
 
 const formatCurrency = (value) => {
@@ -33,11 +34,18 @@ export const KpiCards = () => {
       borderColor: "border-emerald-100"
     },
     {
-      title: "Marge Nette (Comm.)",
-      value: `${data.margeNette.toFixed(2)} %`,
-      icon: Percent,
+      title: "Rendement",
+      value: formatCurrency(data.rendement),
+      icon: Wallet,
       color: "bg-indigo-50 text-indigo-600",
       borderColor: "border-indigo-100"
+    },
+    {
+      title: "Taux de Marge",
+      value: `${(data.tauxDeMarge || 0).toFixed(2)} %`,
+      icon: Percent,
+      color: "bg-teal-50 text-teal-600",
+      borderColor: "border-teal-100"
     },
     {
       title: "Valeur du Stock",

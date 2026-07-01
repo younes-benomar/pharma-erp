@@ -26,7 +26,8 @@ export const DashboardProvider = ({ children }) => {
     const [data, setData] = useState({
         ca: 0,
         margeBrute: 0,
-        margeNette: 0,
+        rendement: 0,
+        tauxDeMarge: 0,
         valeurStock: 0,
         tauxConversion: 0,
         encoursClient: 0,
@@ -91,16 +92,17 @@ export const DashboardProvider = ({ children }) => {
             // 2. Marge Brute
             const margeBrute = calculateMargeBrute(ca, facturesAchat);
 
-            // 3. Marge Nette (%)
-            let totalMargeNetteAmount = 0;
-            let totalVenteTTC = 0;
+            // 3. Rendement & Taux de Marge
+            let rendementAmount = 0;
+            let totalCout = 0;
             lignesFactureVente.forEach(ligne => {
                 const ttc = ligne.dl_montantttc || 0;
                 const coutLivre = (ligne.dl_prixru || ligne.dl_cmup || 0) * (ligne.dl_qte || 0);
-                totalVenteTTC += ttc;
-                totalMargeNetteAmount += (ttc - coutLivre);
+                totalCout += coutLivre;
+                rendementAmount += (ttc - coutLivre);
             });
-            const margeNette = totalVenteTTC > 0 ? (totalMargeNetteAmount / totalVenteTTC) * 100 : 0;
+            const rendement = rendementAmount;
+            const tauxDeMarge = totalCout > 0 ? (rendementAmount / totalCout) * 100 : 0;
 
             // 4. Valeur du Stock
             const valeurStock = calculateValeurStock(stock);
@@ -169,7 +171,8 @@ export const DashboardProvider = ({ children }) => {
             setData({
                 ca,
                 margeBrute,
-                margeNette,
+                rendement,
+                tauxDeMarge,
                 valeurStock,
                 tauxConversion,
                 encoursClient,
@@ -188,7 +191,8 @@ export const DashboardProvider = ({ children }) => {
             setData({
                 ca: 1250400 * coeff,
                 margeBrute: 450000 * coeff,
-                margeNette: 18.5 * coeff,
+                rendement: 380000 * coeff,
+                tauxDeMarge: 25.5 * coeff,
                 valeurStock: 3400000,
                 tauxConversion: 65.2 * coeff,
                 encoursClient: 82 * coeff,
